@@ -91,9 +91,9 @@ def segment_image(image):
     start = 1
     end = 2
     pieces_num = 1
-    segmented_path = os.path.basename(image).split('.')[0]
-    if not os.path.exists(segmented_path): os.mkdir(segmented_path)
-    copyfile(image, '{}/{}'.format(segmented_path, os.path.basename(image)))
+    segmented_path = os.path.join('segmented_images', os.path.basename(image).split('.')[0])
+    if not os.path.exists(segmented_path): os.makedirs(segmented_path)
+    copyfile(image, os.path.join(segmented_path, os.path.basename(image)))
     while n < w - 1:
         n += 1
         if(white[n] if arg else black[n]) > ((1 - segmentation_spacing) * white_max if arg else (1 - segmentation_spacing) * black_max):
