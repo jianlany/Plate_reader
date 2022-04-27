@@ -1,0 +1,73 @@
+"""
+Created on Tue Apr 26 11:54:13 2022
+
+@author: Elijah White
+"""
+import csv
+
+#giving each line their own status, you can ignore
+#frank = np.chararray((448,1))
+#for i in range(0,448):
+#    ralf = random.randint(0,100)
+#    barf = random.randint(0,100)
+#    if ralf <=10:
+#        frank[i] = "stolen"
+#    else:
+#        frank[i] = "good"
+
+#csv2dict gets the database.csv and transforms it into a python dictionary
+def csv2dict(FN):
+    dict_from_csv = {}
+    with open(FN, mode='r') as inp:
+        reader = csv.reader(inp)
+        dict_from_csv = {rows[0]:[rows[1],rows[2],rows[3],rows[4],rows[5],rows[6]] for rows in reader}
+    return(dict_from_csv)
+
+#calls my database in a function to turn it into a dictionary. you need my altdictionary.csv for it to work
+databasedict = csv2dict("altdatabase.csv")
+
+#dbcheck takes your license plate number and color as a string input, 
+#finds if the license plate exists in the database, 
+#and then compares and outputs the colors of your input and the database, 
+#and also outputs the status of the vehicle
+def dbcheck(lplate,color):
+    try:
+        dbcolor = databasedict[lplate][5]
+        dbstatus = databasedict[lplate][4]
+    except:
+        print("plate number",lplate,"not in database")
+        print("color:",color)
+        return
+    if (color == "can't tell"):
+        print("can't tell color")
+    if color == dbcolor:
+        print("color match", color)
+    else:
+        print("color does not match |","color:",color,"| database:",dbcolor)
+    if dbstatus == "s":
+        print("status: stolen")
+    else:
+        print("status: good ")
+
+
+#dbcheck(license plate number in "string", color in "string")
+dbcheck("42879444",'white')
+#dbcheck(str(428794),'black')
+
+
+
+        
+
+
+
+
+
+
+
+
+
+
+
+
+
+
