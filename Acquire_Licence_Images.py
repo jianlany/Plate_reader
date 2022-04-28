@@ -15,8 +15,9 @@ import random as rng
 
 rng.seed(12345)
 
-def thresh_callback(val):
-    threshold = val
+def thresh_callback(img):
+    gray = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
+    threshold = 100
     # Detect edges using Canny
     canny_output = cv2.Canny(gray, threshold, threshold * 2)
     # Find contours
@@ -51,7 +52,7 @@ def thresh_callback(val):
                 y_max = y
                 w_max = w
                 h_max = h
-                color = (rng.randint(0,256), rng.randint(0,256), rng.randint(0,256))
+                #color = (rng.randint(0,256), rng.randint(0,256), rng.randint(0,256))
                 #cv2.drawContours(drawing, contours, i, color, 2, cv2.LINE_8, hierarchy, 0)
                 #new_image = cv2.bitwise_and(gray,gray,mask=mask)
     return img[y_max:y_max+h_max,x_max:x_max+w_max], x_max, y_max, w_max, h_max
@@ -68,7 +69,7 @@ for count, filename in enumerate(os.listdir(folder)):
     gray = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY) 
     #gray = cv2.bilateralFilter(gray, 13, 15, 15) 
     gray_1 = cv2.threshold(gray, 100, 255, cv2.THRESH_BINARY)
-    new_image, x, y, w, h = thresh_callback(100)
+    new_image, x, y, w, h = thresh_callback(img)
     #new_image[y:y+h,x:x+w] = 255
     kernel = np.array([[0, -1, 0],
                    [-1, 5,-1],
