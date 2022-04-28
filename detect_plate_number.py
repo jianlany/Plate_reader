@@ -7,6 +7,7 @@ import re
 from glob import glob
 from char_recognizer_cnn import Net
 from segmentation_license import segment_image
+from Acquire_Licence_Images import thresh_callback as get_plate_image
 from data_loader import alphabet_string
 
 extract_model_num = lambda f : int(re.match('.*model_(\d+)\.pth', f).group(1))
@@ -16,8 +17,8 @@ network_state_dict = torch.load(latest_model)
 network.load_state_dict(network_state_dict)
 network.eval()
 
-def detect_plate_number(img):
-    # plate_image = get_plate_image(img)
+def detect_plate_number(original_img):
+    img, _, _, _, _ = get_plate_image(original_img)
     sub_images = segment_image(img, 'output/', debug = False)
     plate_numbers = []
     for img in sub_images:
@@ -29,6 +30,7 @@ def detect_plate_number(img):
         letter = alphabet_string[output.argmax()]
         plate_numbers.append(letter)
 
+    cv2.imwrite('output/original_image.png', original_img)
     return ''.join(plate_numbers)
 
 

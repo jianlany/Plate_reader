@@ -8,14 +8,16 @@ import cv2
 
 def segment_image(image, output_path = 'segmented_images/temp/', debug = False):
 
-    if os.path.exists(output_path): rmtree(output_path)
-    os.makedirs(output_path)
+    if os.path.exists(output_path): 
+        for f in glob(output_path + '/*'):
+            os.remove(f)
+    else: os.makedirs(output_path)
     if isinstance(image, str):
         original_img = cv2.imread(image,1)
-        copyfile(image, os.path.join(output_path, 'original.png'))
+        copyfile(image, os.path.join(output_path, 'plate.png'))
     elif isinstance(image, numpy.ndarray):
         original_img = image
-        cv2.imwrite(os.path.join(output_path, 'original.png'), image)
+        cv2.imwrite(os.path.join(output_path, 'plate.png'), image)
 
     # determine assumption space of each letter
 
