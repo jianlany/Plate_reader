@@ -12,8 +12,6 @@ alphabet_string = ['A', 'B', 'C', 'D', 'E', 'F', 'G',
 
 def data_loader(csvfile):
     filenames, plate_numbers = numpy.genfromtxt(csvfile, skip_header = 1, usecols = (0,2), dtype = str, delimiter = ',').T
-    hh = 80
-    ww = 50
     X = []
     y = []
     count = 0
@@ -26,23 +24,11 @@ def data_loader(csvfile):
         for im in sub_image_paths:
             image = cv2.imread(im, cv2.IMREAD_GRAYSCALE)
             h, w = image.shape
-            scale = 80/h
-            image = cv2.resize(image, (int(w*scale), int(h*scale)), interpolation = cv2.INTER_LINEAR)
-            h, w = image.shape
-            if w < 50:
-                left = (ww - w)//2
-                right = ww - w - left
-                # print(w, left, right)
-                # print(numpy.zeros((h, left)).shape)
-                # print(numpy.zeros((h, right)).shape)
-                image = numpy.hstack((numpy.zeros((h, left)),
-                                      image,
-                                      numpy.zeros((h, right))))
-            elif w >= 50:
+            if w > 50:
                 print(w, im)
                 valid_segmentation = False
                 break
-            image = image.reshape(1, 1, hh, ww)
+            image = image.reshape(1, 1, *image.shape)
             subimages.append(image)
 
         yy = plate_number_ohe(p)

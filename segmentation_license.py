@@ -4,17 +4,23 @@ import os
 import numpy
 from glob import glob
 from shutil import copyfile, rmtree
-import cv2 as cv2
+import cv2
 
-def segment_image(image):
+def segment_image(image, output_path = 'segmented_images/temp/', debug = False):
+
+    if os.path.exists(output_path): rmtree(output_path)
+    os.makedirs(output_path)
+    if isinstance(image, str):
+        original_img = cv2.imread(image,1)
+        copyfile(image, os.path.join(output_path, 'original.png'))
+    elif isinstance(image, numpy.ndarray):
+        original_img = image
+        cv2.imwrite(os.path.join(output_path, 'original.png'), image)
+
     # determine assumption space of each letter
-    segmentation_spacing = 0.99
-
-
 
     # read image and make it to a gray form to reduce noise
 
-    original_img = cv2.imread(image,1)
     h = original_img.shape[0]
     w = original_img.shape[1]
     upper_bp = 0.1
@@ -29,7 +35,6 @@ def segment_image(image):
     scale = 160.0/h
     w = int(scale*w)
     h = int(scale*h)
-    print(w, h)
     img_gray = cv2.resize(img_gray, (w, h),  interpolation = cv2.INTER_LINEAR)
 
 
@@ -37,9 +42,6 @@ def segment_image(image):
 
     _, img = cv2.threshold(img_gray, 127, 255, cv2.THRESH_BINARY_INV)
 
-
-    # cv2.imshow('img', img)
-    # cv2.waitKey(0)
 
     # make a for loop to calculate sum of white and black pixel
 
@@ -94,40 +96,31 @@ def segment_image(image):
         return left, right, top, bot
 
 
-    segmented_path = os.path.join('segmented_images', os.path.basename(image).split('.')[0])
-    if os.path.exists(segmented_path): 
-        rmtree(segmented_path)
-    os.makedirs(segmented_path)
-    copyfile(image, os.path.join(segmented_path, os.path.basename(image)))
 
 
     white, black, white_max, black_max, black_background = get_black_white_pixels_col(img)
     assert(len(white) == len(black) == w)
-    print(black_background)
     if not black_background: 
         img = invert(img)
         white, black = black, white
         white_max, black_max = black_max, white_max
 
-    # cv2.imshow('img', img)
-    # cv2.waitKey(0)
+    cv2.imwrite(os.path.join(output_path, 'processed.png'), img)
+    if debug:
+        cv2.imshow('processed', img)
+        cv2.waitKey(0)
 
-    def find_end(zz):
-        ending = zz + 1
-        for i in range(zz +1, w - 1):
-            if black[i] > segmentation_spacing * black_max:
-                ending = i
-                break
-        return ending
     n = 0
     start = 1
     end = 2
     pieces_num = 1
+    sub_images = []
+    ww = 50
+    hh = 80
     while n < w-1:
         n += 1
         # if the middle line is 0
         if img[int(h/2), n] == 255:
-        # if white[n] > (1 - segmentation_spacing) * white_max:
             start = n
             left, right, top, bot = find_char_box(start)
             if right - left > 40: 
@@ -135,16 +128,36 @@ def segment_image(image):
             # sys.exit()
             n = right 
             if top - bot > 0.2*h and right - left > 0.005 * w:
-                print(left, right, bot, top)
+                if debug:
+                    print("Box of subimage:")
+                    print(left, right, bot, top)
                 cj = img[bot:top, left:right]
-                cv2.imwrite('{}/{}.png'.format(segmented_path, pieces_num), cj)
-                pieces_num += 1
-                # cv2.imshow('cutChar', cj)
-                #cv2.waitKey(0)
+                h_small, w_small = cj.shape
+                scale = 80/h_small
+                w_small = int(scale*w_small)
+                h_small = int(scale*h_small)
+                cj = cv2.resize(cj, (w_small, h_small), interpolation = cv2.INTER_LINEAR)
+                if w_small < 50:
+                    l = (ww - w_small)//2
+                    r = ww - w_small - l
+                    cj = numpy.hstack((numpy.zeros((hh, l)),
+                                       cj,
+                                       numpy.zeros((hh, r))))
+                else: 
+                    print("subimage is wider than 50 pixels.")
+                    print(cj.shape)
+                sub_images.append(cj)
 
-    # for subimg in sorted(glob(os.path.join(segmented_path, '?.png'))):
-    #     cv2.imshow('img', cv2.imread(subimg, 1))
-    #     cv2.waitKey(0)
+
+    for i, cj in enumerate(sub_images):
+        cv2.imwrite('{}/{}.png'.format(output_path, i+1), cj)
+
+    if debug:
+        for subimg in sorted(glob(os.path.join(segmented_path, '?.png'))):
+            cv2.imshow('img', cv2.imread(subimg, 1))
+            cv2.waitKey(0)
+
+    return sub_images
 
 
 def get_black_white_pixels_col(img):
@@ -184,5 +197,4 @@ def invert(img):
 if __name__ == "__main__":
     for image in sys.argv[1:]:
         print(image)
-        segment_image(image)
-    segment_image('PlateImages_only/188511198478c7.png')
+        segment_image(image, os.path.join('segmented_images', os.path.basename(image).split('.')[0]), debug = False)
