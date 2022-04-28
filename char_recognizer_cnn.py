@@ -20,10 +20,10 @@ from sklearn.model_selection import train_test_split
 ##  parameters
 ##
 ## loop over the entire dataset
-n_epochs = 3
+n_epochs = 20
 batch_size_train = 64
 batch_size_test = 1000
-learning_rate = 0.001    ## set learning rate
+learning_rate = 1e-4    ## set learning rate
 momentum = 0.5          ## momentum parameter
 log_interval = 100
 
@@ -36,7 +36,7 @@ torch.manual_seed(random_seed)
 X, y = data_loader('./PlateImages_only/data.csv')
 print(X.shape, y.shape)
 X, y = torch.tensor(X), torch.LongTensor(y)
-X_train, X_test, y_train, y_test = train_test_split(X, y, test_size = 0.3, random_state = random_seed)
+X_train, X_test, y_train, y_test = train_test_split(X, y, test_size = 0.2, random_state = random_seed)
 
 
 
@@ -77,13 +77,13 @@ class Net(nn.Module):
         self.conv1 = nn.Conv2d(1, 10, kernel_size=5)
         self.conv2 = nn.Conv2d(10, 20, kernel_size=5)
         self.conv2_drop = nn.Dropout2d()
-        self.fc1 = nn.Linear(7480, 1000)
-        self.fc2 = nn.Linear(1000, 36)
+        self.fc1 = nn.Linear(3060, 300)
+        self.fc2 = nn.Linear(300, 36)
 
     def forward(self, x):
         x = F.relu(F.max_pool2d(self.conv1(x), 2))
         x = F.relu(F.max_pool2d(self.conv2_drop(self.conv2(x)), 2))
-        x = x.view(-1,7480)
+        x = x.view(-1,3060)
         x = F.relu(self.fc1(x))
         x = F.dropout(x, training=self.training)
         x = self.fc2(x)
@@ -104,7 +104,6 @@ train_counter = []
 test_losses = []
 test_acc = []
 test_counter = [i*(len(X_train)) for i in range(n_epochs + 1)]
-print(test_counter)
 ##
 ##      functions for training and testing
 ##
@@ -118,12 +117,13 @@ def train(epoch):
         optimizer.step()
         if batch_idx % log_interval == 0:
             train_losses.append(loss.item())
-            train_counter.append((epoch-1)*len(X_train)*len(data) + batch_idx*len(data))
-            torch.save(network.state_dict(), 'results/model.pth')
-            torch.save(optimizer.state_dict(), 'results/optimizer.pth')
-            print('Train Epoch: {} [{}/{}]\tLoss: {:.6f}'.format(
+            num_sample_seen = (epoch-1)*len(X_train)*len(data) + batch_idx*len(data)
+            train_counter.append(num_sample_seen)
+            print('Train Epoch: {} [{}/{}]\tLoss: {:.6g}'.format(
               epoch, batch_idx, len(X_train),
               loss.item()))
+    torch.save(network.state_dict(), 'results/model_{}.pth'.format(epoch*len(X_train)))
+    torch.save(optimizer.state_dict(), 'results/optimizer_{}.pth'.format(epoch*len(X_train)))
 ##
 def test():
     network.eval()
@@ -136,6 +136,7 @@ def test():
             test_loss += loss.item()
             pred = output.data.max(1, keepdim=True)[1]
             correct += pred.eq(target.data.view_as(pred)).sum()
+            # print(alphabet_string[output.argmax()], alphabet_string[target], pred.eq(target.data.view_as(pred)).sum())
         test_loss /= len(X_test)
         test_losses.append(test_loss)
         acc = 100. * correct / len(X_test)
@@ -153,6 +154,8 @@ for epoch in range(1, n_epochs + 1):
     train(epoch)
     test()  ## now with trained weights
 
+tend = time.time()
+print('Total run time {:.2f} seconds'.format(tend-tbeg))
 
 with open("training_results.txt", 'w') as f:
     f.write('# samples_seen_in_train train_losses sample_seen_in_test test_losses test_accuracy (%)\n')
@@ -210,8 +213,6 @@ fig.savefig("Loss_vs_iterations.png", dpi = 300)
 #     # test_counter.append(i*len(train_loader.dataset))
 #     train(i)
 #     test()
-# tend = time.time()
-# print('Total run time ', tbeg, tend, tend-tbeg)
 # ##
 # ##      let's look at our progress
 # ##

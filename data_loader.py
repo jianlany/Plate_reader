@@ -13,7 +13,7 @@ alphabet_string = ['A', 'B', 'C', 'D', 'E', 'F', 'G',
 def data_loader(csvfile):
     filenames, plate_numbers = numpy.genfromtxt(csvfile, skip_header = 1, usecols = (0,2), dtype = str, delimiter = ',').T
     hh = 80
-    ww = 100
+    ww = 50
     X = []
     y = []
     count = 0
