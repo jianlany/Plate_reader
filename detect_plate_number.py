@@ -22,6 +22,9 @@ def detect_plate_number(img):
     plate_numbers = []
     for img in sub_images:
         h, w = img.shape
+        if w > 50: 
+            print("Character is wider than 50 pixels, skipping.")
+            continue
         output = network(torch.tensor(img.reshape(1, 1, h, w)).float())
         letter = alphabet_string[output.argmax()]
         plate_numbers.append(letter)
