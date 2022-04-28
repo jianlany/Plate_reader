@@ -61,7 +61,7 @@ def segment_image(image, output_path = 'segmented_images/temp/', debug = False):
     img = cv2.erode(img, kernel, iterations = 3)
     img = cv2.dilate(img, kernel, iterations = 1)
     kernel = numpy.ones((3,3))
-    img = cv2.morphologyEx(img, cv2.MORPH_CLOSE, kernel)
+    img = cv2.morphologyEx(img, cv2.MORPH_CLOSE, kernel, iterations = 3)
 
 
 
@@ -153,7 +153,7 @@ def segment_image(image, output_path = 'segmented_images/temp/', debug = False):
         cv2.imwrite('{}/{}.png'.format(output_path, i+1), cj)
 
     if debug:
-        for subimg in sorted(glob(os.path.join(segmented_path, '?.png'))):
+        for subimg in sorted(glob(os.path.join(output_path, '?.png'))):
             cv2.imshow('img', cv2.imread(subimg, 1))
             cv2.waitKey(0)
 
