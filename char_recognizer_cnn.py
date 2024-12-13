@@ -2,10 +2,10 @@
 import sys
 import os
 import torch
-import torchvision
 import torch.nn as nn
 import torch.nn.functional as F
 import torch.optim as optim
+from torch.utils.data import TensorDataset, random_split, DataLoader
 import numpy
 import time
 from itertools import zip_longest
@@ -42,23 +42,46 @@ def main():
     ##  parameters
     ##
     ## loop over the entire dataset
-    n_epochs = 10
-    batch_size_train = 64
-    batch_size_test = 1000
-    learning_rate = 1e-4    ## set learning rate
+    n_epochs = 15
+    learning_rate = 3e-6
     momentum = 0.5          ## momentum parameter
     log_interval = 100
+    output_dir = './results'
 
-    if not os.path.exists('./results'): os.mkdir('results')
+    device = torch.device('cuda:0' if torch.cuda.is_available() else 'cpu')
+    device = 'cpu'
+
+    if not os.path.exists(output_dir): os.mkdir(output_dir)
 
     random_seed = 1         ## this will make runs repeatable
-    torch.backends.cudnn.enabled = False
     torch.manual_seed(random_seed)
 
-    X, y = data_loader('./PlateImages_only/data.csv')
-    print(X.shape, y.shape)
-    X, y = torch.tensor(X), torch.LongTensor(y)
+    X, y = data_loader('./PlateImages_only/data.csv', device = device)
+    X = X[len(X), numpy.newaxis, ...]
+    y = y[..., numpy.newaxis]
+    X = torch.tensor(X, device = device, dtype = torch.float32)
+    y = torch.tensor(y, device = device, dtype = torch.long)
+    """
+    dataset = TensorDataset(X, y)
+    train_size = int(0.8*len(dataset))
+    test_size = len(dataset) - train_size
+
+    generator = torch.Generator(device = 'cpu')
+    generator.manual_seed(random_seed)
+
+    train_dataset, test_dataset = random_split(dataset, [train_size, test_size], 
+                    generator = generator)
+
+    batch_size = 1
+    train_loader = DataLoader(train_dataset, batch_size = batch_size, shuffle = True)
+    test_loader = DataLoader(test_dataset, batch_size = batch_size, shuffle = True)
+    """
     X_train, X_test, y_train, y_test = train_test_split(X, y, test_size = 0.2, random_state = random_seed)
+    train_size = len(X_train)
+    test_size = len(X_test)
+    train_loader = zip(X_train, y_train)
+    test_loader = zip(X_test, y_test)
+    # sys.exit(0)
 
 
 
@@ -67,10 +90,10 @@ def main():
     ##
     ##      look at some data
     ##
-    examples = enumerate(zip(X_test, y_test))
+    ## examples = enumerate(zip(X_test, y_test))
     ##
     import matplotlib.pyplot as plt
-
+    """
     fig = plt.figure()
 
     for batch_idx, (example_data, example_targets) in examples:
@@ -83,11 +106,12 @@ def main():
         plt.yticks([])
 
     fig.savefig('ground_truth.png', dpi = 600)
+    """
 
     ##
     ##      initialize the network and optimizer
     ##
-    network = Net()
+    network = Net().to(device)
     ##  network.cuda() ## send problem to GPU
     optimizer = optim.SGD(network.parameters(), lr=learning_rate,
                           momentum=momentum)
@@ -99,47 +123,52 @@ def main():
     train_counter = []
     test_losses = []
     test_acc = []
-    test_counter = [i*(len(X_train)) for i in range(n_epochs + 1)]
+    test_counter = [i*(train_size) for i in range(n_epochs + 1)]
     ##
     ##      functions for training and testing
     ##
     def train(epoch):
         network.train()
-        for batch_idx, (data, target) in enumerate(zip(X_train, y_train)):
+        for batch_idx, (data, target) in enumerate(train_loader):
             optimizer.zero_grad()
-            output = network(data.float())
+            output = network(data)
+            # print("Forward pass done")
             loss = criterion(output, target)
+            # print("Loss calculated")
             loss.backward()
+            # print("Backward pass done")
             optimizer.step()
+            # print("Optimizer step done")
             if batch_idx % log_interval == 0:
                 train_losses.append(loss.item())
-                num_sample_seen = (epoch-1)*len(X_train)*len(data) + batch_idx*len(data)
+                num_sample_seen = (epoch-1)*len(train_loader)*len(data) + batch_idx*len(data)
                 train_counter.append(num_sample_seen)
                 print('Train Epoch: {} [{}/{}]\tLoss: {:.6g}'.format(
-                  epoch, batch_idx, len(X_train),
+                  epoch, batch_idx, len(train_loader),
                   loss.item()))
-        torch.save(network.state_dict(), 'results/model_{}.pth'.format(epoch*len(X_train)))
-        torch.save(optimizer.state_dict(), 'results/optimizer_{}.pth'.format(epoch*len(X_train)))
+        torch.save(network.state_dict(), '{}/model_{}.pth'.format(output_dir, epoch*len(train_loader)))
+        torch.save(optimizer.state_dict(), '{}/optimizer_{}.pth'.format(output_dir, epoch*len(train_loader)))
     ##
     def test():
         network.eval()
         test_loss = 0
         correct = 0
         with torch.no_grad():
-            for data, target in zip(X_test, y_test):
-                output = network(data.float())
+            num_images = 0
+            for _, (data, target) in enumerate(test_loader):
+                output = network(data)
                 loss = criterion(output, target)
                 test_loss += loss.item()
                 pred = output.data.max(1, keepdim=True)[1]
                 correct += pred.eq(target.data.view_as(pred)).sum()
-                # print(alphabet_string[output.argmax()], alphabet_string[target], pred.eq(target.data.view_as(pred)).sum())
-            test_loss /= len(X_test)
+                num_images += len(data)
+            test_loss /= len(test_loader)
             test_losses.append(test_loss)
-            acc = 100. * correct / len(X_test)
+            acc = 100. * correct / num_images 
             test_acc.append(acc)
             print('\nTest set: Avg. loss: {:.4f}, Accuracy: {}/{} ({:.0f}%)\n'.format(
-            test_loss, correct, len(X_test),
-            acc))
+                test_loss, correct, num_images,
+                acc))
     ##
     ##      Run it
     ##
@@ -151,7 +180,7 @@ def main():
         test()  ## now with trained weights
         print('Epoch {} cost time {:.2f} seconds'.format(epoch, time.time()- tbeg_epoch))
 
-    print('Total run time {:.2f} seconds'.format(time.time()-tbeg))
+    print('Total training time: {:.2f} seconds'.format(time.time()-tbeg))
 
     with open("training_results.txt", 'w') as f:
         f.write('# samples_seen_in_train train_losses sample_seen_in_test test_losses test_accuracy (%)\n')

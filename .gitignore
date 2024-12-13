@@ -4,3 +4,4 @@ files
 CarImages
 PlateImages_only/*.png
 Licence_Plates_1
+results/*pth
