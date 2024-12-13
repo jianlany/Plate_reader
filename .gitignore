@@ -2,6 +2,6 @@ segmented_images
 __pycache__
 files
 CarImages
-PlateImages_only/*.png
+PlateImages_only/
 Licence_Plates_1
 results/*pth
